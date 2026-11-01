@@ -2,11 +2,14 @@
   "name": "autoforge",
   "version": "1.0.0",
   "private": true,
-  "description": "AutoForge - automotive business operating system with SQLite persistence, secure admin dashboard and 3D experience.",
+  "description": "AutoForge - automotive business operating system with Neon Postgres persistence, secure admin dashboard and 3D experience.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate --schema prisma/schema.postgres.prisma && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "lint": "next lint",
@@ -17,11 +20,14 @@
     "db:studio": "prisma studio",
     "seed": "tsx scripts/seed.ts",
     "seed:reset": "tsx scripts/seed.ts --reset",
-    "seed:postgres": "prisma generate --schema prisma/schema.postgres.prisma && tsx scripts/seed.ts --reset"
+    "seed:postgres": "prisma generate && tsx scripts/seed.ts --reset"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",
     "@hookform/resolvers": "6.0.2",
+    "@neon/config": "^1.10.0",
+    "@neon/env": "^1.6.8",
+    "@prisma/adapter-neon": "6.19.0",
     "@prisma/client": "6.19.0",
     "@react-three/fiber": "9.8.2",
     "bcryptjs": "3.0.3",

@@ -1,6 +1,6 @@
 # AutoForge
 
-Production-ready automotive restoration and workshop management dashboard built with Next.js, TypeScript, Prisma (SQLite locally, PostgreSQL in production), and a lightweight Three.js showroom scene.
+Production-ready automotive restoration and workshop management dashboard built with Next.js, TypeScript, Prisma on Neon Postgres, and a lightweight Three.js showroom scene.
 
 > Original concept and design: **Created by Furqan Khan**.
 
@@ -28,8 +28,8 @@ Production-ready automotive restoration and workshop management dashboard built 
 
 ## Requirements
 
-- Node.js 20 or newer (tested on Node 25)
-- SQLite for local development (no server needed); PostgreSQL for production
+- Node.js 22 or newer (required for the Neon WebSocket driver)
+- A Neon Postgres database (the free tier works)
 - npm
 
 ## Quick Start
@@ -38,17 +38,19 @@ Production-ready automotive restoration and workshop management dashboard built 
 npm install
 ```
 
-1. Configure environment variables:
+1. Link the project and pull Neon credentials:
 
    ```bash
-   cp .env.example .env.local
+   neon link --project-id <project-id> -y   # first time only
+   neon env pull                            # writes DATABASE_URL (pooled) + DATABASE_URL_UNPOOLED (direct)
    ```
 
-   Set `DATABASE_URL="file:./dev.db"` and a 32+ character `AUTH_SECRET`. SQLite is used locally, so no database server is required.
+   Set a 32+ character `AUTH_SECRET` and the `ADMIN_*` values in `.env`.
 
-2. Seed the admin account and demo content:
+2. Push the Prisma schema to Neon and seed the admin + demo content:
 
    ```bash
+   npm run db:push
    npm run seed
    ```
 
@@ -60,8 +62,8 @@ npm install
 
 4. Open <http://localhost:3000> and sign in with the seeded credentials:
 
-   - Email: `admin@autoforge.local`
-   - Password: value of `ADMIN_PASSWORD` (default in `.env.example`: `ChangeMe123!`)
+   - Email: value of `ADMIN_EMAIL`
+   - Password: value of `ADMIN_PASSWORD`
 
 **Change the admin password before deploying.**
 
@@ -81,7 +83,8 @@ npm install
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | Prisma connection string (`file:./dev.db` locally, PostgreSQL URL in production). Server-only. |
+| `DATABASE_URL` | Yes | Pooled Neon Postgres connection string (`-pooler` host) used by Prisma Client at runtime. Server-only. |
+| `DATABASE_URL_UNPOOLED` | Yes | Direct/unpooled Neon connection string used by Prisma CLI for `db push` and migrations. Server-only. |
 | `AUTH_SECRET` | Yes | 32+ character HMAC secret used to sign session JWTs |
 | `ADMIN_EMAIL` | Seed only | Email for the seeded admin account |
 | `ADMIN_NAME` | Seed only | Display name for the seeded admin account |
@@ -137,7 +140,7 @@ components/layout/   Sidebar, topbar, mobile navigation, admin shell
 components/three/    3D car scene, model, fallback, and showcase wrapper
 components/ui/       Shared tables, cards, modals, forms, skeletons, toasts
 lib/                 Auth, Prisma client, validation, serialization, seed data
-prisma/              SQLite schema (local) and PostgreSQL schema (production)
+prisma/              Prisma schema (PostgreSQL on Neon)
 scripts/seed.ts      Admin and demo-content seeding
 middleware.ts        Session-based route protection
 ```
@@ -157,33 +160,35 @@ middleware.ts        Session-based route protection
 - Configure Postgres backups and test restoration before storing real customer data.
 - The app stores workshop/customer records only; it does not process payments or send email/WhatsApp messages. Those integrations remain planned.
 
-## Deployment (Vercel)
+## Deployment (Neon + Vercel)
 
-Vercel's filesystem is read-only and ephemeral, so the local SQLite database
-cannot be used in production. The project ships two Prisma schemas:
+The database is Neon Postgres. `neon.ts` declares the `production` branch, and
+`neon deploy` provisions services and pulls credentials into `.env`. Runtime
+queries use `@prisma/adapter-neon` over the pooled `DATABASE_URL`; the Prisma
+CLI uses the direct `DATABASE_URL_UNPOOLED`.
 
-- `prisma/schema.prisma` — SQLite for local development.
-- `prisma/schema.postgres.prisma` — PostgreSQL for Vercel/production.
+1. Link and provision the Neon project (already done for this checkout):
 
-1. Create a free Postgres database (Vercel Postgres or Neon) and copy its
-   pooled connection string.
-2. Import this folder into Vercel (`npx vercel` after `npx vercel login`, or the
-   dashboard). `vercel.json` already sets the build command to
-   `npm run vercel-build`.
-3. Add these environment variables in Vercel (Project → Settings → Environment
-   Variables):
-   - `DATABASE_URL` — Postgres connection string (`sslmode=require`, pooled).
+   ```bash
+   neon link --project-id <project-id> -y
+   neon deploy
+   ```
+
+2. Add these environment variables in Vercel (Project → Settings → Environment
+   Variables), using Node 22 or newer:
+   - `DATABASE_URL` — pooled Neon connection string (`-pooler` host).
+   - `DATABASE_URL_UNPOOLED` — direct Neon connection string.
    - `AUTH_SECRET` — 32+ character random secret.
    - `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD` — used only for seeding.
    - `NEXT_PUBLIC_APP_NAME` — optional.
-4. From your machine, apply the schema and seed the production database
-   (use the direct, non-pooled URL for `db push` if your provider requires it):
+3. Import this folder into Vercel (`npx vercel`, or the dashboard).
+   `vercel.json` already sets the build command to `npm run vercel-build`, which
+   generates the Prisma client and builds the app.
+4. From your machine, apply the schema and seed the production database:
 
    ```powershell
-   $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
-   npm run db:push:postgres
+   npm run db:push
    npm run seed:postgres
-   npm run db:generate   # restore the local SQLite client afterwards
    ```
 
 5. Deploy, sign in, and immediately change the seeded admin password.
@@ -192,10 +197,11 @@ Useful commands:
 
 | Command | Purpose |
 | --- | --- |
-| `npm run vercel-build` | Generate the Postgres client and build for Vercel |
-| `npm run db:push:postgres` | Push the Postgres schema to `DATABASE_URL` |
-| `npm run seed:postgres` | Generate Postgres client and seed the production DB |
-| `npm run db:generate` | Regenerate the local SQLite Prisma client |
+| `neon deploy` | Apply `neon.ts` and pull branch env vars |
+| `npm run vercel-build` | Generate the Prisma client and build for Vercel |
+| `npm run db:push` | Push the schema to the direct Neon URL |
+| `npm run seed:postgres` | Generate the client and seed the production DB |
+| `npm run db:generate` | Regenerate the Prisma client |
 
 ## Verification
 
@@ -207,5 +213,5 @@ npm run lint
 npm run build
 ```
 
-Database-backed flows require a reachable Postgres instance before seeding and
-end-to-end testing in production.
+Database-backed flows require a reachable Neon database before seeding and
+end-to-end testing.
