@@ -189,12 +189,14 @@ export function OverviewView() {
               hint="Live across the CRM pipeline"
               icon={Users}
               tone="red"
+              href="/admin/leads"
             />
             <KpiCard
               label="Active jobs"
               value={data.kpis.activeProjects}
               hint="In workshop or awaiting approval"
               icon={Car}
+              href="/admin/projects"
             />
             <KpiCard
               label="Pipeline value"
@@ -202,12 +204,14 @@ export function OverviewView() {
               hint="Open lead value in the funnel"
               icon={Wallet}
               format="currency"
+              href="/admin/leads"
             />
             <KpiCard
               label="Parts to reorder"
               value={data.kpis.partsToReorder}
               hint="At or below minimum stock"
               icon={Boxes}
+              href="/admin/parts"
             />
           </div>
 

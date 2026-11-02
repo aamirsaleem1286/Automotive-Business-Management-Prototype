@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -187,6 +187,7 @@ export function UpdatesView() {
   const [deleting, setDeleting] = useState<CustomerUpdate | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -218,6 +219,14 @@ export function UpdatesView() {
     }),
     [updates]
   );
+
+  function focusList(nextStatus: string) {
+    setQuery("");
+    setStatus(nextStatus);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function markSent(update: CustomerUpdate) {
     setSendingId(update.id);
@@ -284,14 +293,14 @@ export function UpdatesView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Updates" value={stats.total} hint="Full communication history" icon={MessagesSquare} tone="red" />
-            <KpiCard label="Drafts" value={stats.drafts} hint="Awaiting message detail" icon={Pencil} />
-            <KpiCard label="Queued" value={stats.queued} hint="Ready to send to customer" icon={Mail} />
-            <KpiCard label="Sent" value={stats.sent} hint="Recorded customer contact" icon={Send} />
+            <KpiCard label="Updates" value={stats.total} hint="Full communication history" icon={MessagesSquare} tone="red" onClick={() => focusList("all")} />
+            <KpiCard label="Drafts" value={stats.drafts} hint="Awaiting message detail" icon={Pencil} onClick={() => focusList("Draft")} />
+            <KpiCard label="Queued" value={stats.queued} hint="Ready to send to customer" icon={Mail} onClick={() => focusList("Queued")} />
+            <KpiCard label="Sent" value={stats.sent} hint="Recorded customer contact" icon={Send} onClick={() => focusList("Sent")} />
           </div>
 
           <Reveal delay={0.04}>
-            <div className="mb-4 panel flex flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div ref={listRef} className="mb-4 panel flex flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:max-w-[320px]">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
                 <input

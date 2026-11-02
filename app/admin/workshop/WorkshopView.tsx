@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -154,6 +154,8 @@ export function WorkshopView() {
   const [deleting, setDeleting] = useState<WorkshopTask | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [taskFilter, setTaskFilter] = useState<"all" | "done" | "pending">("all");
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -175,13 +177,15 @@ export function WorkshopView() {
   const grouped = useMemo(() => {
     const map = new Map<string, WorkshopTask[]>();
     for (const task of tasks) {
+      if (taskFilter === "done" && !task.completed) continue;
+      if (taskFilter === "pending" && task.completed) continue;
       const key = task.category || "Workshop delivery";
       const list = map.get(key) ?? [];
       list.push(task);
       map.set(key, list);
     }
     return Array.from(map.entries());
-  }, [tasks]);
+  }, [tasks, taskFilter]);
 
   const activeProjects = useMemo(
     () =>
@@ -193,6 +197,13 @@ export function WorkshopView() {
         ),
     [projects]
   );
+
+  function focusList(next: "all" | "done" | "pending") {
+    setTaskFilter(next);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function toggleTask(task: WorkshopTask) {
     if (pendingIds.includes(task.id)) return;
@@ -269,10 +280,10 @@ export function WorkshopView() {
       {tasksSwr.data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Checklist items" value={stats.total} hint="Across the floor workflow" icon={ClipboardCheck} tone="red" />
-            <KpiCard label="Completed" value={stats.completed} hint="Signed off for today" icon={Check} />
-            <KpiCard label="Remaining" value={stats.remaining} hint="Still requiring attention" icon={Wrench} />
-            <KpiCard label="Completion" value={stats.rate} hint="Readiness across the checklist" icon={Gauge} format="percent" />
+            <KpiCard label="Checklist items" value={stats.total} hint="Across the floor workflow" icon={ClipboardCheck} tone="red" onClick={() => focusList("all")} />
+            <KpiCard label="Completed" value={stats.completed} hint="Signed off for today" icon={Check} onClick={() => focusList("done")} />
+            <KpiCard label="Remaining" value={stats.remaining} hint="Still requiring attention" icon={Wrench} onClick={() => focusList("pending")} />
+            <KpiCard label="Completion" value={stats.rate} hint="Readiness across the checklist" icon={Gauge} format="percent" onClick={() => focusList("all")} />
           </div>
 
           <div className="grid items-start gap-4 xl:grid-cols-[1.3fr_1fr]">
@@ -299,6 +310,29 @@ export function WorkshopView() {
                     tone={stats.rate === 100 ? "success" : "accent"}
                     className="mt-3"
                   />
+                  <div className="mt-3 flex items-center gap-1.5">
+                    {(
+                      [
+                        ["all", "All"],
+                        ["pending", "Remaining"],
+                        ["done", "Completed"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setTaskFilter(value)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
+                          taskFilter === value
+                            ? "border-accent/30 bg-accent/10 text-accent"
+                            : "border-line bg-panel2/40 text-muted hover:text-ink"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {grouped.length ? (
@@ -395,7 +429,7 @@ export function WorkshopView() {
 
             <div className="min-w-0 space-y-4">
               <Reveal delay={0.08}>
-                <section className="panel overflow-hidden">
+              <section ref={listRef} className="panel overflow-hidden">
                   <div className="flex items-center justify-between border-b border-line/80 px-4 py-3.5">
                     <div>
                       <h2 className="text-sm font-semibold text-ink">Bay board</h2>

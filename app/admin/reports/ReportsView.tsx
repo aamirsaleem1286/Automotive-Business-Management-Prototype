@@ -149,10 +149,10 @@ export function ReportsView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Total leads" value={data.kpis.leadCount} hint="All captured enquiries" icon={Users} tone="red" />
-            <KpiCard label="Quote approval" value={data.kpis.quoteApprovalRate} hint="Approved share of quotes" icon={FileCheck2} format="percent" />
-            <KpiCard label="Open job value" value={data.kpis.openJobValue} hint="Unclosed lead pipeline value" icon={Wallet} format="currency" />
-            <KpiCard label="Low stock SKUs" value={data.kpis.lowStockSkus} hint="At or below reorder threshold" icon={Boxes} />
+            <KpiCard label="Total leads" value={data.kpis.leadCount} hint="All captured enquiries" icon={Users} tone="red" href="/admin/leads" />
+            <KpiCard label="Quote approval" value={data.kpis.quoteApprovalRate} hint="Approved share of quotes" icon={FileCheck2} format="percent" href="/admin/quotes" />
+            <KpiCard label="Open job value" value={data.kpis.openJobValue} hint="Unclosed lead pipeline value" icon={Wallet} format="currency" href="/admin/leads" />
+            <KpiCard label="Low stock SKUs" value={data.kpis.lowStockSkus} hint="At or below reorder threshold" icon={Boxes} href="/admin/parts" />
           </div>
 
           <div className="grid items-start gap-4 xl:grid-cols-2">

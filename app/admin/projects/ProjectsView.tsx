@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -206,6 +206,7 @@ export function ProjectsView() {
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -214,8 +215,21 @@ export function ProjectsView() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const today = new Date();
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 14);
     return projects.filter((project) => {
-      const matchesStage = stage === "all" || project.stage === stage;
+      const dueSoon =
+        project.stage !== "Ready for handover" &&
+        new Date(project.dueDate) <= horizon &&
+        new Date(project.dueDate) >= new Date(today.toDateString());
+      const matchesStage =
+        stage === "all" ||
+        (stage === "active"
+          ? project.stage !== "Ready for handover"
+          : stage === "due"
+            ? dueSoon
+            : project.stage === stage);
       const matchesQuery =
         !needle ||
         [project.ref, project.customer, project.vehicle, project.owner, project.scope]
@@ -252,6 +266,14 @@ export function ProjectsView() {
       ).length,
     };
   }, [projects]);
+
+  function focusList(nextStage: string) {
+    setQuery("");
+    setStage(nextStage);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -305,14 +327,14 @@ export function ProjectsView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Active builds" value={stats.active} hint="Not yet ready for handover" icon={Car} tone="red" />
-            <KpiCard label="Due in 14 days" value={stats.dueSoon} hint="Upcoming delivery commitments" icon={CalendarClock} />
-            <KpiCard label="Average progress" value={stats.average} hint="Across all restoration jobs" icon={Gauge} format="percent" />
-            <KpiCard label="Ready to hand over" value={stats.ready} hint="Quality check complete" icon={CheckCircle2} />
+            <KpiCard label="Active builds" value={stats.active} hint="Not yet ready for handover" icon={Car} tone="red" onClick={() => focusList("active")} />
+            <KpiCard label="Due in 14 days" value={stats.dueSoon} hint="Upcoming delivery commitments" icon={CalendarClock} onClick={() => focusList("due")} />
+            <KpiCard label="Average progress" value={stats.average} hint="Across all restoration jobs" icon={Gauge} format="percent" onClick={() => focusList("all")} />
+            <KpiCard label="Ready to hand over" value={stats.ready} hint="Quality check complete" icon={CheckCircle2} onClick={() => focusList("Ready for handover")} />
           </div>
 
           <Reveal delay={0.04}>
-            <section className="panel overflow-hidden">
+            <section ref={listRef} className="panel overflow-hidden">
               <div className="flex flex-col gap-2.5 border-b border-line/80 p-3.5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative w-full lg:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
@@ -335,6 +357,28 @@ export function ProjectsView() {
                     }`}
                   >
                     All stages
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStage("active")}
+                    className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                      stage === "active"
+                        ? "border-accent/30 bg-accent/10 text-accent"
+                        : "border-line bg-panel2/40 text-muted hover:text-ink"
+                    }`}
+                  >
+                    Active builds
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStage("due")}
+                    className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                      stage === "due"
+                        ? "border-accent/30 bg-accent/10 text-accent"
+                        : "border-line bg-panel2/40 text-muted hover:text-ink"
+                    }`}
+                  >
+                    Due in 14 days
                   </button>
                   {PROJECT_STAGES.map((option) => (
                     <button

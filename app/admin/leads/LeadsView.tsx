@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -220,6 +220,7 @@ export function LeadsView() {
   const [editing, setEditing] = useState<Lead | null>(null);
   const [deleting, setDeleting] = useState<Lead | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -229,7 +230,11 @@ export function LeadsView() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return leads.filter((lead) => {
-      const matchesStatus = status === "all" || lead.status === status;
+      const matchesStatus =
+        status === "all" ||
+        (status === "open"
+          ? lead.status !== "Won" && lead.status !== "Lost"
+          : lead.status === status);
       const matchesQuery =
         !needle ||
         [lead.name, lead.vehicle, lead.interest, lead.owner, lead.nextAction]
@@ -251,6 +256,14 @@ export function LeadsView() {
       won: leads.filter((lead) => lead.status === "Won").length,
     };
   }, [leads]);
+
+  function focusList(nextStatus: string) {
+    setQuery("");
+    setStatus(nextStatus);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   function openCreate() {
     setEditing(null);
@@ -313,12 +326,14 @@ export function LeadsView() {
               hint="All captured opportunities"
               icon={Users}
               tone="red"
+              onClick={() => focusList("all")}
             />
             <KpiCard
               label="Open pipeline"
               value={stats.open}
               hint="Excludes won and lost"
               icon={UserCheck}
+              onClick={() => focusList("open")}
             />
             <KpiCard
               label="Open value"
@@ -326,17 +341,19 @@ export function LeadsView() {
               hint="Estimated value in play"
               icon={Wallet}
               format="currency"
+              onClick={() => focusList("open")}
             />
             <KpiCard
               label="Won"
               value={stats.won}
               hint="Converted to restoration work"
               icon={UserCheck}
+              onClick={() => focusList("Won")}
             />
           </div>
 
           <Reveal delay={0.04}>
-            <section className="panel overflow-hidden">
+            <section ref={listRef} className="panel overflow-hidden">
               <div className="flex flex-col gap-2.5 border-b border-line/80 p-3.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
@@ -356,6 +373,7 @@ export function LeadsView() {
                     aria-label="Filter by status"
                   >
                     <option value="all">All statuses</option>
+                    <option value="open">Open (excludes won/lost)</option>
                     {LEAD_STATUSES.map((option) => (
                       <option key={option} value={option}>
                         {option}

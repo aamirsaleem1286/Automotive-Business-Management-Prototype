@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -71,6 +72,8 @@ export function KpiCard({
   format = "number",
   tone = "default",
   className,
+  href,
+  onClick,
 }: {
   label: string;
   value: number | string;
@@ -79,16 +82,11 @@ export function KpiCard({
   format?: NumberFormat;
   tone?: "default" | "red";
   className?: string;
+  href?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ type: "spring", stiffness: 380, damping: 28 }}
-      className={cn(
-        "group relative overflow-hidden rounded-[13px] border border-line/90 bg-panel p-4 shadow-panel sm:p-[18px]",
-        className
-      )}
-    >
+  const content = (
+    <>
       <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-accent/0 blur-2xl transition-colors duration-500 group-hover:bg-accent/10" />
       <div className="flex items-start justify-between gap-3">
         <span className="text-[11px] font-medium text-muted sm:text-xs">
@@ -115,6 +113,48 @@ export function KpiCard({
       <div className="mt-1.5 text-[10px] leading-relaxed text-success sm:text-[11px]">
         {hint}
       </div>
+    </>
+  );
+
+  const cardClassName = cn(
+    "group relative block w-full overflow-hidden rounded-[13px] border border-line/90 bg-panel p-4 text-left shadow-panel sm:p-[18px]",
+    href || onClick ? "cursor-pointer transition-colors hover:border-accent/40" : "",
+    className
+  );
+
+  if (href) {
+    return (
+      <motion.div
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 380, damping: 28 }}
+      >
+        <Link href={href} className={cardClassName}>
+          {content}
+        </Link>
+      </motion.div>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <motion.div
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 380, damping: 28 }}
+      >
+        <button type="button" onClick={onClick} className={cardClassName}>
+          {content}
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 380, damping: 28 }}
+      className={cardClassName}
+    >
+      {content}
     </motion.div>
   );
 }

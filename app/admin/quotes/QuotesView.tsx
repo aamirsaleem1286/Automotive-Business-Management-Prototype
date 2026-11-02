@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -176,6 +176,7 @@ export function QuotesView() {
   const [deleting, setDeleting] = useState<Quote | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -185,7 +186,11 @@ export function QuotesView() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return quotes.filter((quote) => {
-      const matchesStatus = status === "all" || quote.status === status;
+      const matchesStatus =
+        status === "all" ||
+        (status === "pending"
+          ? quote.status === "Draft" || quote.status === "Sent"
+          : quote.status === status);
       const matchesQuery =
         !needle ||
         [quote.ref, quote.customer, quote.project]
@@ -210,6 +215,14 @@ export function QuotesView() {
         : 0,
     };
   }, [quotes]);
+
+  function focusList(nextStatus: string) {
+    setQuery("");
+    setStatus(nextStatus);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function setQuoteStatus(quote: Quote, next: Quote["status"]) {
     setUpdatingId(quote.id);
@@ -278,14 +291,14 @@ export function QuotesView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Quotes" value={stats.total} hint="Across all approval states" icon={FileText} tone="red" />
-            <KpiCard label="Awaiting decision" value={stats.pending} hint="Draft or sent to customer" icon={Send} />
-            <KpiCard label="Approved value" value={stats.approvedValue} hint="Committed restoration revenue" icon={CircleDollarSign} format="currency" />
-            <KpiCard label="Approval rate" value={stats.rate} hint="Approved share of all quotes" icon={Check} format="percent" />
+            <KpiCard label="Quotes" value={stats.total} hint="Across all approval states" icon={FileText} tone="red" onClick={() => focusList("all")} />
+            <KpiCard label="Awaiting decision" value={stats.pending} hint="Draft or sent to customer" icon={Send} onClick={() => focusList("pending")} />
+            <KpiCard label="Approved value" value={stats.approvedValue} hint="Committed restoration revenue" icon={CircleDollarSign} format="currency" onClick={() => focusList("Approved")} />
+            <KpiCard label="Approval rate" value={stats.rate} hint="Approved share of all quotes" icon={Check} format="percent" onClick={() => focusList("all")} />
           </div>
 
           <Reveal delay={0.04}>
-            <section className="panel overflow-hidden">
+            <section ref={listRef} className="panel overflow-hidden">
               <div className="flex flex-col gap-2.5 border-b border-line/80 p-3.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
@@ -305,6 +318,7 @@ export function QuotesView() {
                     aria-label="Filter quotes by status"
                   >
                     <option value="all">All statuses</option>
+                    <option value="pending">Awaiting decision</option>
                     {QUOTE_STATUSES.map((option) => (
                       <option key={option} value={option}>
                         {option}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -178,6 +178,7 @@ export function StoreView() {
   const [deleting, setDeleting] = useState<Order | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -187,7 +188,11 @@ export function StoreView() {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return orders.filter((order) => {
-      const matchesStatus = status === "all" || order.status === status;
+      const matchesStatus =
+        status === "all" ||
+        (status === "active"
+          ? order.status === "Processing" || order.status === "Ready to ship"
+          : order.status === status);
       const matchesQuery =
         !needle ||
         [order.ref, order.customer, order.item]
@@ -214,6 +219,14 @@ export function StoreView() {
         : 0,
     };
   }, [orders]);
+
+  function focusList(nextStatus: string) {
+    setQuery("");
+    setStatus(nextStatus);
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function advance(order: Order) {
     const next =
@@ -289,14 +302,14 @@ export function StoreView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Store orders" value={stats.total} hint="Across all fulfilment states" icon={ShoppingBag} tone="red" />
-            <KpiCard label="Completed revenue" value={stats.revenue} hint="Fulfilled order value" icon={CircleDollarSign} format="currency" />
-            <KpiCard label="In fulfilment" value={stats.processing} hint="Processing or ready to ship" icon={Truck} />
-            <KpiCard label="Average order" value={stats.average} hint="Mean order value" icon={CircleDollarSign} format="currency" />
+            <KpiCard label="Store orders" value={stats.total} hint="Across all fulfilment states" icon={ShoppingBag} tone="red" onClick={() => focusList("all")} />
+            <KpiCard label="Completed revenue" value={stats.revenue} hint="Fulfilled order value" icon={CircleDollarSign} format="currency" onClick={() => focusList("Completed")} />
+            <KpiCard label="In fulfilment" value={stats.processing} hint="Processing or ready to ship" icon={Truck} onClick={() => focusList("active")} />
+            <KpiCard label="Average order" value={stats.average} hint="Mean order value" icon={CircleDollarSign} format="currency" onClick={() => focusList("all")} />
           </div>
 
           <Reveal delay={0.04}>
-            <section className="panel overflow-hidden">
+            <section ref={listRef} className="panel overflow-hidden">
               <div className="flex flex-col gap-2.5 border-b border-line/80 p-3.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
@@ -316,6 +329,7 @@ export function StoreView() {
                     aria-label="Filter orders by status"
                   >
                     <option value="all">All statuses</option>
+                    <option value="active">In fulfilment</option>
                     {ORDER_STATUSES.map((option) => (
                       <option key={option} value={option}>
                         {option}

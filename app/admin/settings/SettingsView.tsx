@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Building2,
   Check,
+  KeyRound,
   Mail,
   MapPin,
   Phone,
@@ -52,6 +53,12 @@ export function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetPending, setResetPending] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const { toast } = useToast();
   const session = useSession();
   const router = useRouter();
@@ -66,6 +73,16 @@ export function SettingsView() {
       contactPhone: data.contactPhone ?? "",
     });
     setReadiness(data.readiness ?? []);
+  }, [data]);
+
+  useEffect(() => {
+    if (!data || typeof window === "undefined") return;
+    if (window.location.hash !== "#profile-password") return;
+    requestAnimationFrame(() =>
+      document
+        .getElementById("profile-password")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
   }, [data]);
 
   const readinessStats = useMemo(() => {
@@ -106,6 +123,45 @@ export function SettingsView() {
       toast(errorMessage(caught), "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function updatePasswordField(
+    key: keyof typeof passwordForm,
+    value: string
+  ) {
+    setPasswordForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (passwordForm.newPassword.length < 8) {
+      toast("New password must be at least 8 characters.", "error");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast("New passwords do not match.", "error");
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await apiMutate<{ updated: boolean }>("/api/auth/password", "PATCH", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      toast("Password updated successfully.");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (caught) {
+      toast(errorMessage(caught), "error");
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -417,6 +473,107 @@ export function SettingsView() {
                     </li>
                   ))}
                 </ul>
+              </section>
+            </Reveal>
+
+            <Reveal delay={0.09}>
+              <section id="profile-password" className="panel p-4">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-accent" />
+                  <div>
+                    <h2 className="text-sm font-semibold text-ink">
+                      Profile & password
+                    </h2>
+                    <p className="mt-0.5 text-[10px] text-muted">
+                      Update the password for your signed-in account.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-line/70 bg-panel2/30 p-3">
+                  <div className="text-[11px] font-semibold text-ink">
+                    {session.name}
+                  </div>
+                  <div className="mt-0.5 truncate text-[10px] text-muted">
+                    {session.email} ·{" "}
+                    {session.role === "admin" ? "Administrator" : "Manager"}
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={changePassword}
+                  className="mt-3 space-y-3"
+                  noValidate
+                >
+                  <Field
+                    label="Current password"
+                    htmlFor="current-password"
+                    required
+                  >
+                    <input
+                      id="current-password"
+                      type="password"
+                      autoComplete="current-password"
+                      className="input"
+                      value={passwordForm.currentPassword}
+                      onChange={(event) =>
+                        updatePasswordField(
+                          "currentPassword",
+                          event.target.value
+                        )
+                      }
+                      required
+                    />
+                  </Field>
+                  <Field
+                    label="New password"
+                    htmlFor="new-password"
+                    required
+                    hint="At least 8 characters."
+                  >
+                    <input
+                      id="new-password"
+                      type="password"
+                      autoComplete="new-password"
+                      className="input"
+                      value={passwordForm.newPassword}
+                      onChange={(event) =>
+                        updatePasswordField("newPassword", event.target.value)
+                      }
+                      required
+                    />
+                  </Field>
+                  <Field
+                    label="Confirm new password"
+                    htmlFor="confirm-password"
+                    required
+                  >
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      className="input"
+                      value={passwordForm.confirmPassword}
+                      onChange={(event) =>
+                        updatePasswordField(
+                          "confirmPassword",
+                          event.target.value
+                        )
+                      }
+                      required
+                    />
+                  </Field>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="submit"
+                    loading={passwordSaving}
+                    disabled={passwordSaving}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Update password
+                  </Button>
+                </form>
               </section>
             </Reveal>
 

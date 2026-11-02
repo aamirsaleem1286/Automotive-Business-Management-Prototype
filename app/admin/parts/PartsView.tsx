@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -212,10 +212,12 @@ export function PartsView() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [lowOnly, setLowOnly] = useState(false);
+  const [outOnly, setOutOnly] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Part | null>(null);
   const [deleting, setDeleting] = useState<Part | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const listRef = useRef<HTMLElement | null>(null);
   const { toast } = useToast();
   const session = useSession();
 
@@ -226,7 +228,9 @@ export function PartsView() {
     const needle = query.trim().toLowerCase();
     return parts.filter((part) => {
       const matchesCategory = category === "all" || part.category === category;
-      const matchesLow = !lowOnly || part.stock <= part.minStock;
+      const matchesLow = outOnly
+        ? part.stock === 0
+        : !lowOnly || part.stock <= part.minStock;
       const matchesQuery =
         !needle ||
         [part.sku, part.name, part.category]
@@ -235,7 +239,7 @@ export function PartsView() {
           .includes(needle);
       return matchesCategory && matchesLow && matchesQuery;
     });
-  }, [parts, query, category, lowOnly]);
+  }, [parts, query, category, lowOnly, outOnly]);
 
   const stats = useMemo(() => {
     const low = parts.filter((part) => part.stock <= part.minStock);
@@ -246,6 +250,16 @@ export function PartsView() {
       out: parts.filter((part) => part.stock === 0).length,
     };
   }, [parts]);
+
+  function focusList(next: "all" | "low" | "out") {
+    setQuery("");
+    setCategory("all");
+    setLowOnly(next === "low");
+    setOutOnly(next === "out");
+    requestAnimationFrame(() =>
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  }
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -299,14 +313,14 @@ export function PartsView() {
       {data ? (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <KpiCard label="Active SKUs" value={stats.skus} hint="Tracked across all categories" icon={Boxes} tone="red" />
-            <KpiCard label="Stock value" value={stats.value} hint="At current catalog prices" icon={Wallet} format="currency" />
-            <KpiCard label="At reorder point" value={stats.low} hint="At or below minimum stock" icon={AlertTriangle} />
-            <KpiCard label="Out of stock" value={stats.out} hint="Blocking potential build work" icon={PackageCheck} />
+            <KpiCard label="Active SKUs" value={stats.skus} hint="Tracked across all categories" icon={Boxes} tone="red" onClick={() => focusList("all")} />
+            <KpiCard label="Stock value" value={stats.value} hint="At current catalog prices" icon={Wallet} format="currency" onClick={() => focusList("all")} />
+            <KpiCard label="At reorder point" value={stats.low} hint="At or below minimum stock" icon={AlertTriangle} onClick={() => focusList("low")} />
+            <KpiCard label="Out of stock" value={stats.out} hint="Blocking potential build work" icon={PackageCheck} onClick={() => focusList("out")} />
           </div>
 
           <Reveal delay={0.04}>
-            <section className="panel overflow-hidden">
+            <section ref={listRef} className="panel overflow-hidden">
               <div className="flex flex-col gap-2.5 border-b border-line/80 p-3.5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative w-full lg:max-w-[320px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5f6b79]" />
@@ -334,7 +348,10 @@ export function PartsView() {
                   </select>
                   <button
                     type="button"
-                    onClick={() => setLowOnly((value) => !value)}
+                    onClick={() => {
+                      setOutOnly(false);
+                      setLowOnly((value) => !value);
+                    }}
                     aria-pressed={lowOnly}
                     className={cn(
                       "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition-colors",
@@ -345,6 +362,23 @@ export function PartsView() {
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Reorder only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLowOnly(false);
+                      setOutOnly((value) => !value);
+                    }}
+                    aria-pressed={outOnly}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition-colors",
+                      outOnly
+                        ? "border-accent/30 bg-accent/10 text-accent"
+                        : "border-line bg-panel2/40 text-muted hover:text-ink"
+                    )}
+                  >
+                    <PackageCheck className="h-3.5 w-3.5" />
+                    Out of stock
                   </button>
                   <span className="whitespace-nowrap text-[10px] text-muted">
                     {filtered.length} of {parts.length}

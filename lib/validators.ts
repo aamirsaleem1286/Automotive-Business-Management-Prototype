@@ -43,6 +43,26 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required").max(200),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string({ required_error: "Current password is required" })
+      .min(1, "Current password is required")
+      .max(200),
+    newPassword: z
+      .string({ required_error: "New password is required" })
+      .min(8, "New password must be at least 8 characters")
+      .max(200, "New password is too long"),
+    confirmPassword: z
+      .string({ required_error: "Confirm your new password" })
+      .min(1, "Confirm your new password")
+      .max(200),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const leadSchema = z.object({
   name: requiredText("Customer name", 120),
   vehicle: requiredText("Vehicle", 120),
@@ -156,3 +176,4 @@ export type CustomerUpdateInput = z.infer<typeof customerUpdateSchema>;
 export type WorkshopTaskInput = z.infer<typeof workshopTaskSchema>;
 export type SettingsInput = z.infer<typeof settingsUpdateSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

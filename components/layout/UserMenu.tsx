@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { ChevronDown, KeyRound, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useSession } from "@/components/providers/SessionProvider";
 import { useLogout } from "./useLogout";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,15 @@ export function UserMenu() {
             </div>
           </div>
           <div className="p-1.5">
+            <Link
+              href="/admin/settings#profile-password"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-muted transition-colors hover:bg-panel2 hover:text-ink"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Profile & password
+            </Link>
             <Link
               href="/admin/settings"
               role="menuitem"
